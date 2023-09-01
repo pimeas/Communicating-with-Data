@@ -1,0 +1,193 @@
+---
+title: "Group 10_Final Project Report"
+output: html_document
+author: "Huixin Yang, Ananya Goel, Sammy Park"
+date: "2022-12-07"
+---
+
+################################
+## Workspace Prep
+################################
+
+* Data source: [Kaggle](https://www.kaggle.com/datasets/mysarahmadbhat/airline-passenger-satisfaction)
+
+* Same datset used from the midterm project for the final
+
+################################
+## Load Packages
+################################
+
+```{r, echo=FALSE}
+library(ggplot2)
+library(shiny)
+library(tidyverse)
+library(plyr)
+library(knitr)
+library(rmarkdown)
+library(rsconnect)
+```
+
+################################
+## Data Cleaning and Sampling
+################################
+* `airline_passenger_satisfaction.csv`
+
+```{r}
+airline = read.csv("airline_passenger_satisfaction.csv")
+airline = airline %>% drop_na()
+set.seed(2003)
+chart <- airline[sample(1:nrow(airline), 1000), ]
+```
+
+################################
+## Dataset Summary
+################################
+
+**Airline Passenger Satisfaction**
+
+Dataset Description:
+
+* The dataset consists of customer satisfaction scores of 120,000+ airline passengers; we random sampled 1000 observations.
+
+* Our sample contains information about each passenger as well as details about their flight and flying experience.
+
+* Of the 24 columns, we selected eight key variables to explore our questions of interest – `Customer Type`, `Satisfaction`, `Type of Travel`, `Arrival Delay`, `Class`, `Flight Distance`, `Gender`, `Age`
+
+Data Dictionary:
+
+* `Satisfaction`: Overall satisfaction level with the airline (Satisfied/Neutral or unsatisfied).
+
+* `Customer Type`: Type of airline customer (First-time/Returning)
+
+* `Type of Travel`: Purpose of the flight (Business/Personal).
+
+* `Arrival Delay`: Flight arrival delay in minutes.
+
+* `Class`: Travel class in the airplane for the passenger seat (Business/Economy/Economy Plus)
+
+* `Flight Distance`: Flight distance in miles
+
+* `Gender`: Gender of the passenger (Female/Male)
+
+* `Age`: Age of the passenger
+
+```{r}
+head(chart)
+summary(chart)
+str(chart)
+```
+
+################################
+## Questions
+################################
+
+# Past project reflection
+For our midterm project, we covered two questions: "How do departure and arrival delays relate to a passenger’s satisfaction by reason for travel?" and "The relationship between Departure and Arrival Delays and how does it affect a passenger’s satisfaction level?". For our first question, we concluded that business travelers take up about 2/3 of the proportion that have divided satisfaction ratings about a flight and personal travelers taking up 1/3 with a large proportion of them being neutral or dissatisfied with the flight overall. For the second question, we concluded that flights that delayed in departure and on time in arrival had greater satisfaction levels, while those delayed in arrival and on time in departure had lower satisfaction levels. From this project, we wanted to explore further how gender could play an active role in satisfaction levels and how a passenger's flight and personal information relates to their flight distance and satisfaction. 
+
+# Final Questions
+How does a passenger's flight and personal information relate to their flight's distance?
+
+How does gender relate to a passenger's satisfaction levels considering their age and flight information? 
+
+################################
+## Chart 1
+################################
+
+```{r}
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+    selectInput("customer.type", label = "Customer Type:", choices = c("First-time", "Returning")),
+    radioButtons("class", label = "Class:",
+              choices = c("Business", "Economy"), selected = "Business"),
+    sliderInput("distance", label = "Flight Distance:", min = 100, 
+        max = 2000, value = c(500, 1500))
+    ),
+    mainPanel(
+     plotOutput("plot")
+    )))
+
+server <- function(input, output){
+    output$plot <- renderPlot({
+     
+      p <- chart %>% filter((Class == input$class) & (Customer.Type == input$customer.type)) %>% ggplot(aes(x=Gender, y=Flight.Distance)) + geom_boxplot(fill= c('#7B435B', '#9FA0C3')) + theme_minimal() + ylim(input$distance) + labs(title = "Boxplot of Flight Distance for each Gender") + theme(plot.title = element_text(face="bold", size = 18), axis.title.x = element_text(face="bold", size = 12), axis.title.y = element_text(face="bold", size = 12))
+        print(p)
+    })}
+
+shinyApp(ui = ui, server = server)
+```
+
+# Boxplot of Flight Distance for each Gender
+This first chart graphs a passenger's flight distance through a boxplot to compare their distributions based on gender. There are three widgets for use: a select box for Customer Type (First-time/Returning), radio buttons for Class (Business/Economy), and a slider range for Flight Distance (100-2000). We reduced the flight distance range from 67-3968 to 100-2000 because there are limited values from 3000-4000, and the same reasoning goes for removing Economy Plus for flight class. 
+
+# Specific Patterns 
+* When considering business class passengers and flight distances covering 0-2000 miles, the overall spread and range of data for First-time customers is less than Returning customers with First-time customers ranging from ~200 to ~1750 miles and returning ranging from ~175 to >2000 miles. The medians for First-time customers are around 500 miles and Returning customers are around 700 miles. For both First-time and Returning, males generally fly a greater distance than their female counterpart. 
+
+* When considering economy class passengers, the same can be said with Returning male passengers having a higher flight distance median as their female counterpart. An important pattern here is that business classes have a higher spread and range of data compared to economy classes. 
+
+* When limiting the Flight Distance to 100-1000 miles, First-time, male, business class passengers have higher medians of flight distance. Flight distances limited to 1000-2000 miles have an interesting trend where First-time, female passengers have much higher medians and ranges of flight distance in business and economy class compared to their male counterparts. For Returning passengers, male business class passengers have a higher median and female economy class passengers have the higher median.
+
+# Overall Trend
+For distances covering 100-1000 miles, males that are First-time passengers in both and business economy class fly longer distances, but there are around equal flight distance medians for male and female Returning passengers in both business and economy class. 
+For distances covering 1000-2000 miles, females that are First-time passengers in both business and economy class fly longer distances. For returning business travelers, males have a higher median in flight distance than females. Overall, Returning passengers fly longer distances than First-timers.
+
+
+################################
+## Chart 2
+################################
+
+# Replacing delay values greater than 15 minutes to "Delayed Arrival" and those less than or equal to 15 minutes to "On Time"
+```{r}
+chart1 = chart
+chart1$Arrival.Delay[chart1$Arrival.Delay>15]<-"Delayed Arrival"
+chart1$Arrival.Delay[chart1$Arrival.Delay<=15]<-"On Time"
+```
+
+```{r}
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel( 
+  checkboxGroupInput("traveltype", label = "Type of Travel:",
+              choices = c("Business", "Personal"), selected = "Business"),
+  sliderInput("age", label = "Age Range:",
+              min = 10, max = 75, value =c(25,40)),
+  radioButtons("delay", label="Delayed?", choices=c("On Time","Delayed Arrival"), selected="On Time")),
+  mainPanel(
+  plotOutput("plot"))
+  ))
+
+server <- function(input, output){
+    output$plot <- renderPlot({
+      
+
+ chart1 %>% filter((Type.of.Travel == input$traveltype) & (Age == input$age) & (Arrival.Delay==input$delay)) %>% ggplot(aes(x=Satisfaction,fill=Gender))+
+geom_bar(position = "dodge")+scale_fill_manual(values=c("#7B435B","#9FA0C3"))+xlab("Satisfaction")+ylab("count") +ggtitle("Bar Plot for Passenger Satisfaction by Gender")+theme_bw() + theme(plot.title = element_text(face="bold", size = 18), axis.title.x = element_text(face="bold", size = 12), axis.title.y = element_text(face="bold", size = 12))
+      
+    })}
+
+shinyApp(ui = ui, server = server, options = list(height = 600)) 
+```
+
+# Bar Plot for Passenger Satisfaction by Gender
+This second chart is a bar plot showing the number of passengers with each satisfaction level (Neutral or Dissatisfied/Satisfied) based on gender. There are three widgets for use: a checkbox group for Type of Travel (Business/Personal), radio buttons for Delay? (Delayed Arrival/On Time), and a slider range for Age (10-75). We reduced the age range from 7-85 to 10-75 because there are limited values from 75-85, and the arrival delay was categorized with delays greater than 15 minutes being a "Delayed Arrival" and delays equal to or less than 15 minutes being "On Time". 
+
+# Specific Patterns
+* For ages ranging from 10-25, business travelers with a delayed arrival that are female were generally neutral or dissatisfied, while personal travelers with a delayed arrival that are male were neutral or dissatisfied. Business travelers that were on time and are female were generally more satisfied with the flight, while their male counterparts were equally neutral or dissatisfied and satisfied. For personal travelers, males were also equally neutral or dissatisfied and satisfied.
+
+* For ages ranging from 25-50, business travelers that were delayed and are female were satisfied with their flight. Business travelers that were on time and are female were generally satisfied with their male counterparts being divided on their satisfaction. Personal travelers that were on time and are male were generally dissatisfied and their female counterparts were neutral or dissatisfied. 
+
+* For ages ranging from 50-75, business travelers that were on time had equally divided opinions from both males and females on their satisfaction level. Personal travelers that were delayed and are male were neutral or dissatisfied, and personal travelers that were on time and are female are generally more neutral or dissatisfied. 
+
+# Overall Trend
+For ages 10-25, delayed arrivals meant generally neutral or dissatisfied passengers, however males on flights that were on time were equally neutral or dissatisfied and satisfied. 
+
+For ages 25-50, this age range is a greater proportion of all passengers. Female business travelers, regardless of delay or on time arrival, were generally satisfied with their flights. Male business travelers were generally neutral or dissatisfied for both delayed or on time arrival. Personal travelers that were on time were generally dissatisfied.
+
+For ages 50-75, business travelers that were on time had equally divided opinions from both males and females on their satisfaction level. Personal travelers were generally neutral or dissatisfied. 
+
+################################
+## Consideration for business
+################################
+Based off of the first question "How does a passenger's flight and personal information relate to their flight's distance?", the answer is that returning passengers fly much longer distances than first time passengers. For first time passengers flying distances ranging from 100-1000 miles, males fly on the higher end of this spectrum, and for distances ranging from 1000-2000 miles, females fly on the higher end of this spectrum. We can see that sending deals or recommended flights about far distance destinations to returning passengers is optimal and when dealing with new customers looking for travel, recommending shorter distance destinations will be more likely to be taken. 
+
+Based off of the second question "How does gender relate to a passenger's satisfaction levels considering their age and flight information?", the answer is that delayed arrivals related to unsatisfied customers, however an interesting pattern is that for males, even if a flight is on time, they could still find the flight unsatisfactory. Female passengers could be on a delayed arrival flight, but still find the flight satisfactory. For age consideration, younger people ages 10-25 and people ages 25-50 were generally unsatisfied with their flight, while people ages 50-75 were split in their satisfaction. This could mean that there are other factors besides delayed arrival affect a passenger's satisfaction level. However, we would recommend customizing the experience for different age ranges (entertainment for younger people and comfort older people) and providing extra services to passengers on flight expecting an arrival delay. 
