@@ -1,7 +1,6 @@
 ---
-title: "Group 10_Final Project Report"
+title: "Airline Passenger Satisfaction Final Report"
 output: html_document
-author: "Huixin Yang, Ananya Goel, Sammy Park"
 date: "2022-12-07"
 ---
 
